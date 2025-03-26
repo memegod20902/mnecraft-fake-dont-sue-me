@@ -306,3 +306,14 @@ public class VoxelEngine : MonoBehaviour
         controller.Move(velocity * Time.deltaTime);
     }
 }
+ // Add Skybox
+        var loader = new THREE.CubeTextureLoader();
+        var texture = loader.load([
+            'https://threejs.org/examples/textures/skybox/px.jpg',  // +X
+            'https://threejs.org/examples/textures/skybox/nx.jpg',  // -X
+            'https://threejs.org/examples/textures/skybox/py.jpg',  // +Y
+            'https://threejs.org/examples/textures/skybox/ny.jpg',  // -Y
+            'https://threejs.org/examples/textures/skybox/pz.jpg',  // +Z
+            'https://threejs.org/examples/textures/skybox/nz.jpg'   // -Z
+        ]);
+        scene.background = texture;
