@@ -21,6 +21,18 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // Add Skybox
+        var loader = new THREE.CubeTextureLoader();
+        var texture = loader.load([
+            'https://threejs.org/examples/textures/skybox/px.jpg',  // +X
+            'https://threejs.org/examples/textures/skybox/nx.jpg',  // -X
+            'https://threejs.org/examples/textures/skybox/py.jpg',  // +Y
+            'https://threejs.org/examples/textures/skybox/ny.jpg',  // -Y
+            'https://threejs.org/examples/textures/skybox/pz.jpg',  // +Z
+            'https://threejs.org/examples/textures/skybox/nz.jpg'   // -Z
+        ]);
+        scene.background = texture;
+
         // Set up controls (first-person movement)
         var controls = new THREE.PointerLockControls(camera, renderer.domElement);
         document.body.addEventListener('click', () => controls.lock(), false);  // Start the game when clicked
@@ -159,161 +171,3 @@
     </script>
 </body>
 </html>
-                           
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
-
-public class VoxelEngine : MonoBehaviour
-{
-    public int width = 16;
-    public int height = 16;
-    public int depth = 16;
-    public GameObject blockPrefab;
-    public GameObject playerPrefab;
-    public GameObject titleScreen;
-    public Texture blockTexture; // Texture for blocks
-    public GameObject usernamePrefab; // Username display prefab
-    public Texture playerSkin; // Player skin texture
-
-    private Dictionary<Vector3Int, GameObject> blocks = new Dictionary<Vector3Int, GameObject>();
-    private GameObject player;
-    private CharacterController controller;
-    public float speed = 5f;
-    public float jumpForce = 5f;
-    private float gravity = -9.81f;
-    private Vector3 velocity;
-    private GameObject usernameDisplay;
-    public string playerName = "Player";
-
-    void Start()
-    {
-        ShowTitleScreen();
-    }
-
-    void ShowTitleScreen()
-    {
-        titleScreen.SetActive(true);
-        Time.timeScale = 0f;
-    }
-
-    public void StartGame()
-    {
-        titleScreen.SetActive(false);
-        Time.timeScale = 1f;
-        GenerateTerrain();
-        SpawnPlayer();
-    }
-
-    void GenerateTerrain()
-    {
-        for (int x = 0; x < width; x++)
-        {
-            for (int y = 0; y < height; y++)
-            {
-                for (int z = 0; z < depth; z++)
-                {
-                    if (y == 0) // Simple ground level
-                    {
-                        Vector3Int position = new Vector3Int(x, y, z);
-                        GameObject block = Instantiate(blockPrefab, position, Quaternion.identity);
-                        if (blockTexture != null)
-                        {
-                            block.GetComponent<Renderer>().material.mainTexture = blockTexture;
-                        }
-                        blocks.Add(position, block);
-                    }
-                }
-            }
-        }
-    }
-
-    void SpawnPlayer()
-    {
-        Vector3 spawnPosition = new Vector3(width / 2, height + 2, depth / 2);
-        player = Instantiate(playerPrefab, spawnPosition, Quaternion.identity);
-        controller = player.GetComponent<CharacterController>();
-        
-        // Apply player skin
-        if (playerSkin != null)
-        {
-            player.GetComponent<Renderer>().material.mainTexture = playerSkin;
-        }
-        
-        // Create username display
-        usernameDisplay = Instantiate(usernamePrefab, player.transform);
-        usernameDisplay.transform.localPosition = new Vector3(0, 2, 0);
-        usernameDisplay.GetComponent<TextMesh>().text = playerName;
-    }
-
-    void Update()
-    {
-        if (player != null)
-        {
-            PlayerMovement();
-        }
-        
-        if (Input.GetMouseButtonDown(0) || Input.GetButtonDown("Fire1") || Input.GetKeyDown(KeyCode.E)) // Left click, Controller Button, or Keyboard Key
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hit;
-            if (Physics.Raycast(ray, out hit))
-            {
-                Vector3Int hitPosition = Vector3Int.RoundToInt(hit.point - hit.normal * 0.5f);
-                if (blocks.ContainsKey(hitPosition))
-                {
-                    Destroy(blocks[hitPosition]);
-                    blocks.Remove(hitPosition);
-                }
-            }
-        }
-
-        if (Input.GetMouseButtonDown(1) || Input.GetButtonDown("Fire2") || Input.GetKeyDown(KeyCode.Q)) // Right click, Controller Button, or Keyboard Key
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hit;
-            if (Physics.Raycast(ray, out hit))
-            {
-                Vector3Int placePosition = Vector3Int.RoundToInt(hit.point + hit.normal * 0.5f);
-                if (!blocks.ContainsKey(placePosition))
-                {
-                    GameObject block = Instantiate(blockPrefab, placePosition, Quaternion.identity);
-                    if (blockTexture != null)
-                    {
-                        block.GetComponent<Renderer>().material.mainTexture = blockTexture;
-                    }
-                    blocks.Add(placePosition, block);
-                }
-            }
-        }
-    }
-
-    void PlayerMovement()
-    {
-        float moveX = Input.GetAxis("Horizontal") + Input.GetAxis("Joystick X") + Input.GetAxis("GamepadLeftX");
-        float moveZ = Input.GetAxis("Vertical") + Input.GetAxis("Joystick Y") + Input.GetAxis("GamepadLeftY");
-        Vector3 move = transform.right * moveX + transform.forward * moveZ;
-        controller.Move(move * speed * Time.deltaTime);
-
-        if ((Input.GetButtonDown("Jump") || Input.GetButtonDown("JoystickJump") || Input.GetKeyDown(KeyCode.Space) || Input.GetButtonDown("GamepadA")) && controller.isGrounded)
-        {
-            velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
-        }
-
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
-    }
-}
- // Add Skybox
-        var loader = new THREE.CubeTextureLoader();
-        var texture = loader.load([
-            'https://threejs.org/examples/textures/skybox/px.jpg',  // +X
-            'https://threejs.org/examples/textures/skybox/nx.jpg',  // -X
-            'https://threejs.org/examples/textures/skybox/py.jpg',  // +Y
-            'https://threejs.org/examples/textures/skybox/ny.jpg',  // -Y
-            'https://threejs.org/examples/textures/skybox/pz.jpg',  // +Z
-            'https://threejs.org/examples/textures/skybox/nz.jpg'   // -Z
-        ]);
-        scene.background = texture;
