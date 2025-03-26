@@ -1,3 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Minecraft-like Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <!-- No visible code, the 3D world will show up here -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/controls/OrbitControls.js"></script>
+    <script>
+        // Set up the scene
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        var renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Set up controls (first-person movement)
+        var controls = new THREE.PointerLockControls(camera, renderer.domElement);
+        document.body.addEventListener('click', () => controls.lock(), false);  // Start the game when clicked
+
+        // Block Material and Geometry
+        var blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+        var blockMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        var blockMap = {}; // Store the blocks placed in the scene
+
+        // Function to create and place blocks
+        function placeBlock(position) {
+            var block = new THREE.Mesh(blockGeometry, blockMaterial);
+            block.position.set(position.x, position.y, position.z);
+            scene.add(block);
+            blockMap[`${position.x},${position.y},${position.z}`] = block;
+        }
+
+        // Function to remove blocks
+        function removeBlock(position) {
+            var key = `${position.x},${position.y},${position.z}`;
+            var block = blockMap[key];
+            if (block) {
+                scene.remove(block);
+                delete blockMap[key];
+            }
+        }
+
+        // Player movement setup
+        var velocity = new THREE.Vector3();
+        var speed = 0.1;
+        var jumpSpeed = 5;
+        var gravity = -0.2;
+        var isJumping = false;
+        var isGrounded = false;
+
+        // Add the ground (a flat terrain)
+        var groundGeometry = new THREE.PlaneGeometry(500, 500);
+        var groundMaterial = new THREE.MeshBasicMaterial({ color: 0xaaaaaa });
+        var ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -1;
+        scene.add(ground);
+
+        // Add initial block (example)
+        placeBlock(new THREE.Vector3(0, 0, 0));
+
+        // Camera setup
+        camera.position.set(0, 2, 5);
+
+        // Raycasting for mouse interactions
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+
+        function updateRaycaster(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        window.addEventListener('mousemove', updateRaycaster, false);
+        window.addEventListener('click', onMouseClick, false);
+
+        function onMouseClick() {
+            raycaster.setFromCamera(mouse, camera);
+            var intersects = raycaster.intersectObjects(Object.values(blockMap));
+
+            if (intersects.length > 0) {
+                var point = intersects[0].point;
+                // Destroy the clicked block
+                removeBlock(point);
+            } else {
+                // Place a new block at the mouse position
+                var direction = new THREE.Vector3();
+                camera.getWorldDirection(direction);
+                var position = new THREE.Vector3().addVectors(camera.position, direction.multiplyScalar(5));
+                placeBlock(position);
+            }
+        }
+
+        // Movement updates
+        var clock = new THREE.Clock();
+        var deltaTime = 0;
+        function animate() {
+            deltaTime = clock.getDelta();
+            velocity.x = 0;
+            velocity.z = 0;
+
+            // WASD movement
+            if (controls.isLocked) {
+                if (keyboard["w"]) velocity.z -= speed;
+                if (keyboard["s"]) velocity.z += speed;
+                if (keyboard["a"]) velocity.x -= speed;
+                if (keyboard["d"]) velocity.x += speed;
+                if (keyboard[" "] && isGrounded) velocity.y = jumpSpeed;
+
+                // Apply gravity
+                velocity.y += gravity;
+
+                // Move the camera (player)
+                controls.moveRight(velocity.x);
+                controls.moveForward(velocity.z);
+                camera.position.y += velocity.y;
+
+                if (camera.position.y < 1) {
+                    camera.position.y = 1;
+                    isGrounded = true;
+                } else {
+                    isGrounded = false;
+                }
+            }
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Key controls for movement (WASD, Space for jumping)
+        var keyboard = {};
+        window.addEventListener("keydown", function(event) {
+            keyboard[event.key.toLowerCase()] = true;
+        });
+        window.addEventListener("keyup", function(event) {
+            keyboard[event.key.toLowerCase()] = false;
+        });
+
+        // Handle resizing
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        }
+
+        // Start the game by clicking anywhere in the document
+        document.body.style.cursor = 'none'; // Hide cursor for full immersion
+    </script>
+</body>
+</html>
+                           
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -73,17 +235,13 @@ public class VoxelEngine : MonoBehaviour
         Vector3 spawnPosition = new Vector3(width / 2, height + 2, depth / 2);
         player = Instantiate(playerPrefab, spawnPosition, Quaternion.identity);
         controller = player.GetComponent<CharacterController>();
-
-        // Apply player skin (If player prefab includes a mesh renderer)
+        
+        // Apply player skin
         if (playerSkin != null)
         {
-            Renderer playerRenderer = player.GetComponent<Renderer>();
-            if (playerRenderer != null)
-            {
-                playerRenderer.material.mainTexture = playerSkin;
-            }
+            player.GetComponent<Renderer>().material.mainTexture = playerSkin;
         }
-
+        
         // Create username display
         usernameDisplay = Instantiate(usernamePrefab, player.transform);
         usernameDisplay.transform.localPosition = new Vector3(0, 2, 0);
@@ -96,7 +254,7 @@ public class VoxelEngine : MonoBehaviour
         {
             PlayerMovement();
         }
-
+        
         if (Input.GetMouseButtonDown(0) || Input.GetButtonDown("Fire1") || Input.GetKeyDown(KeyCode.E)) // Left click, Controller Button, or Keyboard Key
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -148,78 +306,3 @@ public class VoxelEngine : MonoBehaviour
         controller.Move(velocity * Time.deltaTime);
     }
 }
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Minecraft-like Game</title>
-    <style>
-        body { margin: 0; }
-        canvas { display: block; }
-    </style>
-</head>
-<body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-        // Set up the scene
-        var scene = new THREE.Scene();
-        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        var renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Set up controls (mouse, keyboard, etc.)
-        var controls = new THREE.OrbitControls(camera, renderer.domElement);
-        
-        // Block Material and Geometry
-        var blockGeometry = new THREE.BoxGeometry(1, 1, 1);
-        var blockMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-
-        // A function to place a block where the mouse hits
-        var blocks = [];
-        function placeBlock(event) {
-            var mouse = new THREE.Vector2();
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            var raycaster = new THREE.Raycaster();
-            raycaster.update(camera);
-            raycaster.setFromCamera(mouse, camera);
-            
-            var intersects = raycaster.intersectObject(scene, true);
-            if (intersects.length > 0) {
-                var position = intersects[0].point;
-                var block = new THREE.Mesh(blockGeometry, blockMaterial);
-                block.position.copy(position).add(intersects[0].face.normal);
-                scene.add(block);
-                blocks.push(block);
-            }
-        }
-
-        // Listen to mouse clicks
-        window.addEventListener('click', placeBlock);
-
-        // Camera setup
-        camera.position.z = 5;
-
-        // Animation loop
-        var animate = function () {
-            requestAnimationFrame(animate);
-
-            controls.update(); // Update controls
-
-            renderer.render(scene, camera);
-        };
-
-        animate();
-    </script>
-</body>
-</html>
-
-var texture = new THREE.TextureLoader().load('block_texture.jpg');
-var blockMaterial = new THREE.MeshBasicMaterial({ map: texture });
-
- var light = new THREE.AmbientLight(0x404040); // Ambient light
-scene.add(light);
-                           
